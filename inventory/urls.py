@@ -7,6 +7,8 @@ urlpatterns = [
     path('categories/<int:pk>/', views.CategoryDetailAPIView.as_view(), name='category-detail'),
     path('categories/<int:pk>/update/', views.CategoryUpdateAPIView.as_view(), name='category-update'),
     path('categories/<int:pk>/delete/', views.CategoryDestroyAPIView.as_view(), name='category-delete'),
+    path('category-summary/', views.CategorySummaryAPIView.as_view(), name='category-summary'),
+
 
     # Suppliers
     path('suppliers/', views.SupplierListCreateAPIView.as_view(), name='supplier-list-create'),

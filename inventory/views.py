@@ -2,6 +2,7 @@ from rest_framework import generics
 from rest_framework import filters
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from django.db.models import Count
 from django_filters.rest_framework import DjangoFilterBackend
 from . models import Category, Supplier, Product
 from . serializers import CategorySerializer, SupplierSerializer, ProductSerializer
@@ -33,9 +34,31 @@ class CategoryDestroyAPIView(generics.DestroyAPIView):
     def perform_destroy(self, instance):
         return super().perform_destroy(instance)
     
+class CategorySummaryAPIView(APIView):
+    def get(self, request):
+        # Annotate each category with product counts
+        categories = Category.objects.annotate(product_count=Count("product"))
+        total_categories = categories.count()
 
+        most_populated = categories.order_by("-product_count").first()
+        least_populated = categories.order_by("product_count").first()
+        uncategorized = categories.filter(category_name="Uncategorized").first()
 
-                          # -----  SUPPLIER VIEWS  -----------
+        return Response({
+            "total_categories": total_categories,
+            "most_populated": {
+                "name": most_populated.category_name if most_populated else None,
+                "count": most_populated.product_count if most_populated else 0,
+            },
+            "least_populated": {
+                "name": least_populated.category_name if least_populated else None,
+                "count": least_populated.product_count if least_populated else 0,
+            },
+            "uncategorized_count": uncategorized.product_count if uncategorized else 0,
+        })
+    
+
+# ----------------------------------  SUPPLIER VIEWS  ----------------------------
                           
 # List and Create Supplier
 class SupplierListCreateAPIView(generics.ListCreateAPIView):
@@ -59,7 +82,7 @@ class SupplierDestroyAPIView(generics.DestroyAPIView):
 
 
 
-                            # -----  PRODUCTS VIEWS  -----------
+  #--------------------------------------  PRODUCTS VIEWS  ---------------------
 
 # List and Create Product
 class ProductListCreateAPIView(generics.ListCreateAPIView):
@@ -68,18 +91,6 @@ class ProductListCreateAPIView(generics.ListCreateAPIView):
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['category']
     search_fields = ['product_name', 'category__category_name']
-
-    # def get(self, request, *args, **kwargs):
-    #     latest_product = Product.objects.order_by('-created_at').first()
-    #     highest_quantity_product = Product.objects.order_by('-quantity').first()
-    #     lowest_quantity_product = Product.objects.order_by('quantity').first()
-    #     serializer = ProductSerializer([latest_product, highest_quantity_product, lowest_quantity_product], many=True)
-
-    #     return Response({
-    #         'latest_product':serializer.data[0],
-    #         'lowest_quantity_product': serializer.data[1],
-    #         'highest_quantity_product':serializer.data[2],
-    #     })
 
 # Retrieve Product
 class ProductDetailAPIView(generics.RetrieveAPIView):
@@ -115,10 +126,6 @@ class InventorySummaryAPIView(APIView):
         })
 
 # Category distribution
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from .models import Category
-
 class CategoryDistributionAPIView(APIView):
     def get(self, request):
         data = []
